@@ -168,6 +168,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/jolo1581"><img src="https://avatars1.githubusercontent.com/u/53423977?v=4" width="100px;" alt="Jan A."/><br /><sub><b>Jan A.</b></sub></a><br /><a href="https://github.com/solokeys/solo/commits?author=jolo1581" title="Code">💻</a> <a href="https://github.com/solokeys/solo/commits?author=jolo1581" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/ccinelli"><img src="https://avatars0.githubusercontent.com/u/38021940?v=4" width="100px;" alt="ccinelli"/><br /><sub><b>ccinelli</b></sub></a><br /><a href="#infra-ccinelli" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="https://github.com/solokeys/solo/commits?author=ccinelli" title="Tests">⚠️</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://www.nitrokey.com"><img src="https://avatars1.githubusercontent.com/u/9438831?v=4" width="100px;" alt="Nitrokey"/><br /><sub><b>Nitrokey</b></sub></a><br /><a href="https://github.com/solokeys/solo/commits?author=Nitrokey" title="Code">💻</a> <a href="https://github.com/solokeys/solo/commits?author=Nitrokey" title="Tests">⚠️</a> <a href="#ideas-Nitrokey" title="Ideas, Planning, & Feedback">🤔</a></td>
+  </tr>
 </table>
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
@@ -183,7 +186,7 @@ You may use Solo software under the terms of either the Apache 2.0 license or MI
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 All hardware, unless otherwise noted, is dual licensed under CERN and CC-BY-SA.
-You may use Solo hardware under the terms of either the CERN 2.1 license or CC-BY-SA 4.0 license.
+You may use Solo hardware under the terms of either the CERN 1.2 license or CC-BY-SA 4.0 license.
 
 All documentation, unless otherwise noted, is licensed under CC-BY-SA.
 You may use Solo documentation under the terms of the CC-BY-SA 4.0 license
@@ -200,7 +203,7 @@ You can buy Solo, Solo Tap, and Solo for Hackers at [solokeys.com](https://solok
 <br/>
 
 [![License](https://img.shields.io/github/license/solokeys/solo.svg)](https://github.com/solokeys/solo/blob/master/LICENSE)
-[![All Contributors](https://img.shields.io/badge/all_contributors-21-orange.svg?style=flat-square)](#contributors)
+[![All Contributors](https://img.shields.io/badge/all_contributors-22-orange.svg?style=flat-square)](#contributors)
 [![Build Status](https://travis-ci.com/solokeys/solo.svg?branch=master)](https://travis-ci.com/solokeys/solo)
 [![Discourse Users](https://img.shields.io/discourse/https/discourse.solokeys.com/users.svg)](https://discourse.solokeys.com)
 [![Keybase Chat](https://img.shields.io/badge/chat-on%20keybase-brightgreen.svg)](https://keybase.io/team/solokeys.public)

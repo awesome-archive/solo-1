@@ -285,7 +285,7 @@ static void device_migrate(){
     }
 }
 
-void device_init(int argc, char *argv[])
+void device_init()
 {
 
     hw_init(LOW_FREQUENCY);
@@ -468,20 +468,8 @@ void heartbeat(void)
 
 }
 
-void authenticator_read_state(AuthenticatorState * a)
-{
-    uint32_t * ptr = (uint32_t *)flash_addr(STATE1_PAGE);
-    memmove(a,ptr,sizeof(AuthenticatorState));
-}
 
-void authenticator_read_backup_state(AuthenticatorState * a)
-{
-    uint32_t * ptr = (uint32_t *)flash_addr(STATE2_PAGE);
-    memmove(a,ptr,sizeof(AuthenticatorState));
-}
-
-// Return 1 yes backup is init'd, else 0
-int authenticator_is_backup_initialized(void)
+static int authenticator_is_backup_initialized(void)
 {
     uint8_t header[16];
     uint32_t * ptr = (uint32_t *)flash_addr(STATE2_PAGE);
@@ -490,20 +478,35 @@ int authenticator_is_backup_initialized(void)
     return state->is_initialized == INITIALIZED_MARKER;
 }
 
-void authenticator_write_state(AuthenticatorState * a, int backup)
+int authenticator_read_state(AuthenticatorState * a)
 {
-    if (! backup)
-    {
-        flash_erase_page(STATE1_PAGE);
+    uint32_t * ptr = (uint32_t *) flash_addr(STATE1_PAGE);
+    memmove(a, ptr, sizeof(AuthenticatorState));
 
-        flash_write(flash_addr(STATE1_PAGE), (uint8_t*)a, sizeof(AuthenticatorState));
-    }
-    else
-    {
-        flash_erase_page(STATE2_PAGE);
+    if (a->is_initialized != INITIALIZED_MARKER){
 
-        flash_write(flash_addr(STATE2_PAGE), (uint8_t*)a, sizeof(AuthenticatorState));
+        if (authenticator_is_backup_initialized()){
+            printf1(TAG_ERR,"Warning: memory corruption detected.  restoring from backup..\n");
+            ptr = (uint32_t *) flash_addr(STATE2_PAGE);
+            memmove(a, ptr, sizeof(AuthenticatorState));
+            authenticator_write_state(a);
+            return 1;
+        }
+
+        return 0;
     }
+
+    return 1;
+}
+
+
+void authenticator_write_state(AuthenticatorState * a)
+{
+    flash_erase_page(STATE1_PAGE);
+    flash_write(flash_addr(STATE1_PAGE), (uint8_t*)a, sizeof(AuthenticatorState));
+
+    flash_erase_page(STATE2_PAGE);
+    flash_write(flash_addr(STATE2_PAGE), (uint8_t*)a, sizeof(AuthenticatorState));
 }
 
 #if !defined(IS_BOOTLOADER)
@@ -752,11 +755,6 @@ int ctap_generate_rng(uint8_t * dst, size_t num)
 }
 
 
-int ctap_user_verification(uint8_t arg)
-{
-    return 1;
-}
-
 void ctap_reset_rk(void)
 {
     int i;
@@ -861,6 +859,17 @@ void boot_solo_bootloader(void)
 
 }
 
+void device_read_aaguid(uint8_t * dst){
+    uint8_t * aaguid = (uint8_t *)"\x88\x76\x63\x1b\xd4\xa0\x42\x7f\x57\x73\x0e\xc7\x1c\x9e\x02\x79";
+    memmove(dst, aaguid, 16);
+    if (device_is_nfc()){
+        dst[0] = 0x89;
+    }
+    else if (tsc_sensor_exists()){
+        dst[0] = 0x98;
+    }
+    dump_hex1(TAG_GREEN,dst, 16);
+}
 
 
 void _Error_Handler(char *file, int line)

@@ -275,7 +275,7 @@ static void ctaphid_write(CTAPHID_WRITE_BUFFER * wb, void * _data, int len)
         if (wb->offset > 0)
         {
             memset(wb->buf + wb->offset, 0, HID_MESSAGE_SIZE - wb->offset);
-            ctaphid_write_block(wb->buf);
+            usbhid_send(wb->buf);
         }
         return;
     }
@@ -304,7 +304,7 @@ static void ctaphid_write(CTAPHID_WRITE_BUFFER * wb, void * _data, int len)
         wb->bytes_written += 1;
         if (wb->offset == HID_MESSAGE_SIZE)
         {
-            ctaphid_write_block(wb->buf);
+            usbhid_send(wb->buf);
             wb->offset = 0;
         }
     }
@@ -635,6 +635,9 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
             status = ctap_request(ctap_buffer, len, &ctap_resp);
 
             wb.bcnt = (ctap_resp.length+1);
+            wb.cid = cid;
+            wb.cmd = cmd;
+
 
 
             timestamp();
@@ -665,6 +668,9 @@ uint8_t ctaphid_handle_packet(uint8_t * pkt_raw)
             u2f_request((struct u2f_request_apdu*)ctap_buffer, &ctap_resp);
 
             wb.bcnt = (ctap_resp.length);
+            wb.cid = cid;
+            wb.cmd = cmd;
+
 
             ctaphid_write(&wb, ctap_resp.data, ctap_resp.length);
             ctaphid_write(&wb, NULL, 0);

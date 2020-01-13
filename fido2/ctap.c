@@ -69,6 +69,8 @@ uint8_t ctap_get_info(CborEncoder * encoder)
     CborEncoder map;
     CborEncoder options;
     CborEncoder pins;
+    uint8_t aaguid[16];
+    device_read_aaguid(aaguid);
 
     ret = cbor_encoder_create_map(encoder, &map, 6);
     check_ret(ret);
@@ -105,7 +107,7 @@ uint8_t ctap_get_info(CborEncoder * encoder)
         ret = cbor_encode_uint(&map, RESP_aaguid);
         check_ret(ret);
         {
-            ret = cbor_encode_byte_string(&map, CTAP_AAGUID, 16);
+            ret = cbor_encode_byte_string(&map, aaguid, 16);
             check_ret(ret);
         }
 
@@ -282,13 +284,9 @@ void make_auth_tag(uint8_t * rpIdHash, uint8_t * nonce, uint32_t count, uint8_t 
     memmove(tag, hashbuf, CREDENTIAL_TAG_SIZE);
 }
 
-void ctap_flush_state(int backup)
+void ctap_flush_state()
 {
-    authenticator_write_state(&STATE, 0);
-    if (backup)
-    {
-        authenticator_write_state(&STATE, 1);
-    }
+    authenticator_write_state(&STATE);
 }
 
 static uint32_t auth_data_update_count(CTAP_authDataHeader * authData)
@@ -312,7 +310,7 @@ static uint32_t auth_data_update_count(CTAP_authDataHeader * authData)
 static void ctap_increment_rk_store()
 {
     STATE.rk_stored++;
-    ctap_flush_state(1);
+    ctap_flush_state();
 }
 
 static int is_matching_rk(CTAP_residentKey * rk, CTAP_residentKey * rk2)
@@ -509,7 +507,7 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
 
         cbor_encoder_init(&cose_key, cose_key_buf, *len - sizeof(CTAP_authData), 0);
 
-        memmove(authData->attest.aaguid, CTAP_AAGUID, 16);
+        device_read_aaguid(authData->attest.aaguid);
         authData->attest.credLenL =  sizeof(CredentialId) & 0x00FF;
         authData->attest.credLenH = (sizeof(CredentialId) & 0xFF00) >> 8;
 
@@ -634,10 +632,16 @@ int ctap_calculate_signature(uint8_t * data, int datalen, uint8_t * clientDataHa
 uint8_t ctap_add_attest_statement(CborEncoder * map, uint8_t * sigder, int len)
 {
     int ret;
-
+    uint8_t cert[1024];
+    uint16_t cert_size = device_attestation_cert_der_get_size();
+    if (cert_size > sizeof(cert)){
+        printf2(TAG_ERR,"Certificate is too large for CTAP2 buffer\r\n");
+        return CTAP2_ERR_PROCESSING;
+    }
+    device_attestation_read_cert_der(cert);
+    
     CborEncoder stmtmap;
     CborEncoder x5carr;
-
 
     ret = cbor_encode_int(map,RESP_attStmt);
     check_ret(ret);
@@ -661,7 +665,7 @@ uint8_t ctap_add_attest_statement(CborEncoder * map, uint8_t * sigder, int len)
         ret = cbor_encoder_create_array(&stmtmap, &x5carr, 1);
         check_ret(ret);
         {
-            ret = cbor_encode_byte_string(&x5carr, attestation_cert_der, attestation_cert_der_get_size());
+            ret = cbor_encode_byte_string(&x5carr, cert, device_attestation_cert_der_get_size());
             check_ret(ret);
             ret = cbor_encoder_close_container(&stmtmap, &x5carr);
             check_ret(ret);
@@ -1770,8 +1774,7 @@ static void ctap_state_init()
 */
 void ctap_load_external_keys(uint8_t * keybytes){
     memmove(STATE.key_space, keybytes, KEY_SPACE_BYTES);
-    authenticator_write_state(&STATE, 0);
-    authenticator_write_state(&STATE, 1);
+    authenticator_write_state(&STATE);
     crypto_load_master_secret(STATE.key_space);
 }
 
@@ -1785,30 +1788,18 @@ void ctap_init()
             );
     crypto_ecc256_init();
 
-    authenticator_read_state(&STATE);
+    int is_init = authenticator_read_state(&STATE);
 
     device_set_status(CTAPHID_STATUS_IDLE);
 
-    if (STATE.is_initialized == INITIALIZED_MARKER)
+    if (is_init)
     {
         printf1(TAG_STOR,"Auth state is initialized\n");
     }
     else
     {
-        printf1(TAG_STOR,"Auth state is NOT initialized.  Initializing..\n");
-        if (authenticator_is_backup_initialized())
-        {
-            printf1(TAG_ERR,"Warning: memory corruption detected.  restoring from backup..\n");
-            authenticator_read_backup_state(&STATE);
-            authenticator_write_state(&STATE, 0);
-        }
-        else
-        {
-            ctap_state_init();
-            authenticator_write_state(&STATE, 0);
-            authenticator_write_state(&STATE, 1);
-
-        }
+        ctap_state_init();
+        authenticator_write_state(&STATE);
     }
 
     do_migration_if_required(&STATE);
@@ -1875,8 +1866,7 @@ void ctap_update_pin(uint8_t * pin, int len)
 
     STATE.is_pin_set = 1;
 
-    authenticator_write_state(&STATE, 1);
-    authenticator_write_state(&STATE, 0);
+    authenticator_write_state(&STATE);
 
     printf1(TAG_CTAP, "New pin set: %s [%d]\n", pin, len);
     dump_hex1(TAG_ERR, STATE.PIN_CODE_HASH, sizeof(STATE.PIN_CODE_HASH));
@@ -1891,7 +1881,7 @@ uint8_t ctap_decrement_pin_attempts()
     if (! ctap_device_locked())
     {
         STATE.remaining_tries--;
-        ctap_flush_state(0);
+        ctap_flush_state();
         printf1(TAG_CP, "ATTEMPTS left: %d\n", STATE.remaining_tries);
 
         if (ctap_device_locked())
@@ -1926,7 +1916,7 @@ void ctap_reset_pin_attempts()
 {
     STATE.remaining_tries = PIN_LOCKOUT_ATTEMPTS;
     PIN_BOOT_ATTEMPTS_LEFT = PIN_BOOT_ATTEMPTS;
-    ctap_flush_state(0);
+    ctap_flush_state();
 }
 
 void ctap_reset_state()
@@ -2000,7 +1990,7 @@ int8_t ctap_store_key(uint8_t index, uint8_t * key, uint16_t len)
 
     memmove(STATE.key_space + offset, key, len);
 
-    ctap_flush_state(1);
+    ctap_flush_state();
 
     return 0;
 }
@@ -2042,8 +2032,7 @@ void ctap_reset()
 {
     ctap_state_init();
 
-    authenticator_write_state(&STATE, 0);
-    authenticator_write_state(&STATE, 1);
+    authenticator_write_state(&STATE);
 
     if (ctap_generate_rng(PIN_TOKEN, PIN_TOKEN_SIZE) != 1)
     {
@@ -2063,6 +2052,5 @@ void lock_device_permanently() {
 
     printf1(TAG_CP, "Device locked!\n");
 
-    authenticator_write_state(&STATE, 0);
-    authenticator_write_state(&STATE, 1);
+    authenticator_write_state(&STATE);
 }
